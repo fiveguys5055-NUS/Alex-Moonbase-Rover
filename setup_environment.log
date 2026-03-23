@@ -1,0 +1,85 @@
+===============================
+= Setting up the environment =
+===============================
+
+Changing directory to the location of the script...
+Directory changed to /home/fiveguys/code
+
+
+
+===============================
+= Installing Python          =
+===============================
+
+
+
+
+===============================
+= Installing Dependencies    =
+===============================
+
+Creating virtual environment...
+Virtual environment created.
+
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Requirement already satisfied: pip in ./env/lib/python3.13/site-packages (25.1.1)
+Collecting pip
+  Using cached https://www.piwheels.org/simple/pip/pip-26.0.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.1.1
+    Uninstalling pip-25.1.1:
+      Successfully uninstalled pip-25.1.1
+Successfully installed pip-26.0.1
+
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Collecting matplotlib
+  Using cached matplotlib-3.10.8-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (52 kB)
+Requirement already satisfied: pyserial in /usr/lib/python3/dist-packages (3.5)
+Collecting contourpy>=1.0.1 (from matplotlib)
+  Using cached contourpy-1.3.3-cp313-cp313-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (5.5 kB)
+Collecting cycler>=0.10 (from matplotlib)
+  Using cached https://www.piwheels.org/simple/cycler/cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Collecting fonttools>=4.22.0 (from matplotlib)
+  Using cached fonttools-4.62.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (117 kB)
+Collecting kiwisolver>=1.3.1 (from matplotlib)
+  Using cached kiwisolver-1.5.0-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl.metadata (5.1 kB)
+Requirement already satisfied: numpy>=1.23 in /usr/lib/python3/dist-packages (from matplotlib) (2.2.4)
+Requirement already satisfied: packaging>=20.0 in /usr/lib/python3/dist-packages (from matplotlib) (25.0)
+Requirement already satisfied: pillow>=8 in /usr/lib/python3/dist-packages (from matplotlib) (11.1.0)
+Collecting pyparsing>=3 (from matplotlib)
+  Using cached https://www.piwheels.org/simple/pyparsing/pyparsing-3.3.2-py3-none-any.whl (122 kB)
+Requirement already satisfied: python-dateutil>=2.7 in /usr/lib/python3/dist-packages (from matplotlib) (2.9.0)
+Using cached matplotlib-3.10.8-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (9.5 MB)
+Using cached contourpy-1.3.3-cp313-cp313-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (334 kB)
+Using cached fonttools-4.62.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (5.0 MB)
+Using cached kiwisolver-1.5.0-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (1.3 MB)
+Installing collected packages: pyparsing, kiwisolver, fonttools, cycler, contourpy, matplotlib
+
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+types-seaborn 0.13.2 requires pandas-stubs, which is not installed.
+Successfully installed contourpy-1.3.3 cycler-0.12.1 fonttools-4.62.1 kiwisolver-1.5.0 matplotlib-3.10.8 pyparsing-3.3.2
+
+Installing pyrplidar...
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Obtaining file:///home/fiveguys/code/pyrplidar
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: pyserial in /usr/lib/python3/dist-packages (from pyrplidar==0.1.2) (3.5)
+Building wheels for collected packages: pyrplidar
+  Building editable for pyrplidar (pyproject.toml): started
+  Building editable for pyrplidar (pyproject.toml): finished with status 'done'
+  Created wheel for pyrplidar: filename=pyrplidar-0.1.2-0.editable-py3-none-any.whl size=2360 sha256=f70dfb5bef6e9d1a46cbd4a4d6fb6a54baa9a75adb648d40f9c018712a9e3676
+  Stored in directory: /tmp/pip-ephem-wheel-cache-r0zhnghu/wheels/fc/fd/0a/7961dc1a447a2a9f78ec69b1e126c210d4d7eed023dcebcef9
+Successfully built pyrplidar
+Installing collected packages: pyrplidar
+Successfully installed pyrplidar-0.1.2
+
+Setup complete. To activate the environment, run:
+  source env/bin/activate
