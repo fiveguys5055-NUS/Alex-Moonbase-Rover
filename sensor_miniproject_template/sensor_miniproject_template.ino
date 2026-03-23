@@ -185,6 +185,15 @@ static void readColorChannels(uint32_t *r, uint32_t *g, uint32_t *b) {
     *b = measureChannel(0, 1) * 10;
 }
 
+static void sendOK()              { sendResponse(RESP_OK,     0); }
+static void sendStatus(TState st) { sendResponse(RESP_STATUS, (uint32_t)st); }
+
+// ------------------------------------------------------------------
+// Motor speed (0-255).  Start at 150; FAST/SLOW adjust by 25.
+// ------------------------------------------------------------------
+volatile uint8_t motorSpeed = 100;
+volatile TCommandType last_cmd;
+
 
 // =============================================================
 // Command handler
@@ -201,34 +210,22 @@ static void readColorChannels(uint32_t *r, uint32_t *g, uint32_t *b) {
  *   the channel frequencies in Hz.
  */
 
-volatile uint8_t speed = 1000;
-
 static void handleCommand(const TPacket *cmd) {
     if (cmd->packetType != PACKET_TYPE_COMMAND) return;
 
     switch (cmd->command) {
+
         case COMMAND_ESTOP:
+            stop();
             cli();
             buttonState  = STATE_STOPPED;
             stateChanged = false;
             sei();
-            {
-                // The data field of a TPacket can carry a short debug string (up to
-                // 31 characters).  pi_sensor.py prints it automatically for any packet
-                // where data is non-empty, so you can use it to send debug messages
-                // from the Arduino to the Pi terminal -- similar to Serial.print().
-                TPacket pkt;
-                memset(&pkt, 0, sizeof(pkt));
-                pkt.packetType = PACKET_TYPE_RESPONSE;
-                pkt.command    = RESP_OK;
-                strncpy(pkt.data, "This is a debug message", sizeof(pkt.data) - 1);
-                pkt.data[sizeof(pkt.data) - 1] = '\0';
-                sendFrame(&pkt);
-            }
+            sendOK();
             sendStatus(STATE_STOPPED);
             break;
 
-        case COMMAND_COLOR: {
+        case COMMAND_COLOR:
             uint32_t r, g, b;
             readColorChannels(&r, &g, &b);
             TPacket pkt;
@@ -240,95 +237,70 @@ static void handleCommand(const TPacket *cmd) {
             pkt.params[2]  = b;
             sendFrame(&pkt);
             break;
-        }
 
-         case COMMAND_FW: {
-            forward(speed);
-            int curr_time = millis();
-            int new_time = 0;
-            while(new_time - curr_time >= 5000) {
-                new_time = millis();
+
+        case COMMAND_FW:
+            if (buttonState == STATE_RUNNING) forward(motorSpeed);
+            sendOK();
+            last_cmd = COMMAND_FW;
+            break;
+
+        case COMMAND_BW:
+            if (buttonState == STATE_RUNNING) backward(motorSpeed);
+            sendOK();
+            last_cmd = COMMAND_BW;
+            break;
+
+        case COMMAND_LEFT:
+            if (buttonState == STATE_RUNNING) ccw(motorSpeed);
+            sendOK();
+            last_cmd = COMMAND_LEFT;
+            break;
+
+        case COMMAND_RIGHT:
+            if (buttonState == STATE_RUNNING) cw(motorSpeed);
+            sendOK();
+            last_cmd = COMMAND_RIGHT;
+            break;
+
+        case COMMAND_FAST:
+            if (motorSpeed <= 235) motorSpeed += 20;
+            if(last_cmd == COMMAND_FW) {
+              forward(motorSpeed);
             }
-            stop();
-            TPacket move_pkt;
-            memset(&move_pkt, 0, sizeof(move_pkt));
-            move_pkt.packetType = PACKET_TYPE_RESPONSE;
-            move_pkt.command = RESP_OK;
-            sendFrame(&move_pkt);
-            break;
-                          }
-
-        case COMMAND_BW:  {
-            backward(speed);
-            int curr_time = millis();
-            int new_time = 0;
-            while(new_time - curr_time >= 5000) {
-                new_time = millis();
+            else if(last_cmd == COMMAND_BW) {
+              backward(motorSpeed);
             }
-            stop();
-            TPacket move_pkt;
-            memset(&move_pkt, 0, sizeof(move_pkt));
-            move_pkt.packetType = PACKET_TYPE_RESPONSE;
-            move_pkt.command = RESP_OK;
-            sendFrame(&move_pkt);
-            break;
-                      }
-
-        case COMMAND_LEFT: {
-            ccw(speed);
-            int curr_time = millis();
-            int new_time = 0;
-            while(new_time - curr_time >= 5000) {
-                new_time = millis();
+            else if(last_cmd == COMMAND_LEFT) {
+              ccw(motorSpeed);
             }
-            stop();
-            TPacket move_pkt;
-            memset(&move_pkt, 0, sizeof(move_pkt));
-            move_pkt.packetType = PACKET_TYPE_RESPONSE;
-            move_pkt.command = RESP_OK;
-            sendFrame(&move_pkt);
-            break;
-                      }
-
-        case COMMAND_RIGHT: {
-            cw(speed);
-            int curr_time = millis();
-            int new_time = 0;
-            while(new_time - curr_time >= 5000) {
-                new_time = millis();
+            else if(last_cmd == COMMAND_RIGHT) {
+              cw(motorSpeed);
             }
-            stop();
-            TPacket move_pkt;
-            memset(&move_pkt, 0, sizeof(move_pkt));
-            move_pkt.packetType = PACKET_TYPE_RESPONSE;
-            move_pkt.command = RESP_OK;
-            sendFrame(&move_pkt);
-            break;
-        }
 
-        case COMMAND_FAST:  {
-            speed += 100;
-            TPacket speed_pkt;
-            memset(&speed_pkt, 0, sizeof(speed_pkt));
-            speed_pkt.packetType = PACKET_TYPE_RESPONSE;
-            speed_pkt.command = RESP_OK;
-            sendFrame(&speed_pkt);
+            sendOK();
             break;
-        }
 
-        case COMMAND_SLOW:  {
-            speed -= 100;
-            TPacket speed_pkt;
-            memset(&speed_pkt, 0, sizeof(speed_pkt));
-            speed_pkt.packetType = PACKET_TYPE_RESPONSE;
-            speed_pkt.command = RESP_OK;
-            sendFrame(&speed_pkt);
+        case COMMAND_SLOW:
+            if (motorSpeed >= 20) motorSpeed -= 20;
+            if(last_cmd == COMMAND_FW) {
+              forward(motorSpeed);
+            }
+            else if(last_cmd == COMMAND_BW) {
+                backward(motorSpeed);
+            }
+            else if(last_cmd == COMMAND_LEFT) {
+              ccw(motorSpeed);
+            }
+            else if(last_cmd == COMMAND_RIGHT) {
+              cw(motorSpeed);
+            }
+
+            sendOK();
             break;
     }
-
-    }
+            
 }
-
 // =============================================================
 // Arduino setup() and loop()
 // =============================================================
