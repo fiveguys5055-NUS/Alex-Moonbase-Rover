@@ -253,6 +253,9 @@ static void handleCommand(const TPacket *cmd) {
 // ------------------------------------------------------------------
 
 void setup() {
+    
+    //usartInit(103);   // 9600 baud at 16 MHz
+
     Serial.begin(115200);
 
     // E-Stop button: PD3 (INT3), input (external pull-down)
@@ -260,6 +263,19 @@ void setup() {
     EICRA |=  (1 << ISC30);       // any logical change: ISC31=0, ISC30=1
     EICRA &= ~(1 << ISC31);
     EIMSK |=  (1 << INT3);        // enable INT3
+    
+    //setup colour sensor    
+     // --- TCS3200 control pins: S0-S3 on Port A, outputs ---
+    DDRA  |= (1 << TCS_S0_BIT) | (1 << TCS_S1_BIT)
+           | (1 << TCS_S2_BIT) | (1 << TCS_S3_BIT);
+    // 20 % frequency scaling: S0=HIGH, S1=LOW
+    PORTA |=  (1 << TCS_S0_BIT);
+    PORTA &= ~(1 << TCS_S1_BIT);
+
+    // --- TCS3200 OUT: Pin 19 = PD2 = INT2, input ---
+    DDRD  &= ~(1 << TCS_OUT_BIT);       // PD2 as input
+    // INT2: rising edge -> ISC21=1, ISC20=1 (INT2 NOT enabled here; enabled per measurement)
+    EICRA |= (1 << ISC21) | (1 << ISC20);
 
     sei();
 }

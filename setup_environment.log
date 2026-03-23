@@ -3,7 +3,7 @@
 ===============================
 
 Changing directory to the location of the script...
-Directory changed to /home/fiveguys/code
+Directory changed to /home/fiveguys/goodcode/Alex
 
 
 
@@ -62,7 +62,7 @@ Successfully installed contourpy-1.3.3 cycler-0.12.1 fonttools-4.62.1 kiwisolver
 
 Installing pyrplidar...
 Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
-Obtaining file:///home/fiveguys/code/pyrplidar
+Obtaining file:///home/fiveguys/goodcode/Alex/pyrplidar
   Installing build dependencies: started
   Installing build dependencies: finished with status 'done'
   Checking if build backend supports build_editable: started
@@ -75,8 +75,8 @@ Requirement already satisfied: pyserial in /usr/lib/python3/dist-packages (from 
 Building wheels for collected packages: pyrplidar
   Building editable for pyrplidar (pyproject.toml): started
   Building editable for pyrplidar (pyproject.toml): finished with status 'done'
-  Created wheel for pyrplidar: filename=pyrplidar-0.1.2-0.editable-py3-none-any.whl size=2360 sha256=f70dfb5bef6e9d1a46cbd4a4d6fb6a54baa9a75adb648d40f9c018712a9e3676
-  Stored in directory: /tmp/pip-ephem-wheel-cache-r0zhnghu/wheels/fc/fd/0a/7961dc1a447a2a9f78ec69b1e126c210d4d7eed023dcebcef9
+  Created wheel for pyrplidar: filename=pyrplidar-0.1.2-0.editable-py3-none-any.whl size=2368 sha256=44874dc2dc208a8919422927b93d935d0a8fe932f0ee3d36d973db87a0867fdf
+  Stored in directory: /tmp/pip-ephem-wheel-cache-rvp_qb3n/wheels/41/fd/e5/ec08746e636c9a288b7d45a18165bd81709a8dae90f3339709
 Successfully built pyrplidar
 Installing collected packages: pyrplidar
 Successfully installed pyrplidar-0.1.2

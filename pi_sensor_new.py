@@ -21,6 +21,7 @@ import serial
 import time
 import sys
 import select
+from second_terminal import relay
 
 # ----------------------------------------------------------------
 # SERIAL PORT SETUP
@@ -391,10 +392,12 @@ def runCommandInterface():
             pkt = receiveFrame()
             if pkt:
                 printPacket(pkt)
+                relay.onPacketReceived(packFrame(pkt['packetType'], pkt['command'], pkt['data'], pkt['params']))
 
         rlist, _, _ = select.select([sys.stdin], [], [], 0)
         if rlist:
             line = sys.stdin.readline().strip().lower()
+            relay.checkSecondTerminal(_ser)
             if not line:
                 time.sleep(0.05)
                 continue
@@ -410,6 +413,7 @@ def runCommandInterface():
 if __name__ == '__main__':
     _camera = cameraOpen() if _camera_available else None
     openSerial()
+    relay.start()
     try:
         runCommandInterface()
     except KeyboardInterrupt:
@@ -418,3 +422,4 @@ if __name__ == '__main__':
         if _camera and _camera_available:
             cameraClose(_camera)
         closeSerial()
+        relay.shutdown()
