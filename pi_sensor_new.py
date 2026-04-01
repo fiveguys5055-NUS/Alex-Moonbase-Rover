@@ -388,16 +388,17 @@ def runCommandInterface():
     print("Press Ctrl+C to exit.\n")
 
     while True:
-        if _ser.in_waiting >= FRAME_SIZE:
+        if _ser is not None and _ser.in_waiting >= FRAME_SIZE:
             pkt = receiveFrame()
             if pkt:
                 printPacket(pkt)
                 relay.onPacketReceived(packFrame(pkt['packetType'], pkt['command'], pkt['data'], pkt['params']))
 
+        relay.checkSecondTerminal(_ser)
+
         rlist, _, _ = select.select([sys.stdin], [], [], 0)
         if rlist:
             line = sys.stdin.readline().strip().lower()
-            relay.checkSecondTerminal(_ser)
             if not line:
                 time.sleep(0.05)
                 continue
@@ -412,7 +413,11 @@ def runCommandInterface():
 
 if __name__ == '__main__':
     _camera = cameraOpen() if _camera_available else None
-    openSerial()
+    try:
+        openSerial()
+    except Exception as e:
+        print(f"[WARNING] Arduino not connected ({e}). Relay will still start.")
+        _ser = None
     relay.start()
     try:
         runCommandInterface()

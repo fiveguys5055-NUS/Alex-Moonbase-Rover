@@ -179,7 +179,7 @@ def _handleInput(line: str, client: TCPClient):
         return
 
     if line == 'e':
-        frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_ESTOP)
+        frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_ESTOP, data=b'secret information')
         sendTPacketFrame(client.sock, frame)
         print("[second_terminal] Sent: E-STOP")
 
