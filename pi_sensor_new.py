@@ -22,6 +22,8 @@ import time
 import sys
 import select
 from second_terminal import relay
+import tty
+import termios
 
 # ----------------------------------------------------------------
 # SERIAL PORT SETUP
@@ -67,6 +69,7 @@ COMMAND_RIGHT = 5
 COMMAND_FAST  = 6
 COMMAND_SLOW  = 7
 COMMAND_ARM   = 8
+COMMAND_RUN   = 9
 
 RESP_OK     = 0
 RESP_STATUS = 1
@@ -389,38 +392,122 @@ def handleUserInput(line):
         handleArmInput(line)
     elif line == 'h':
         handleArmInput('H')
+    elif line == '1':
+        print('Resuming (un-estop)...')
+        sendCommand(COMMAND_RUN)
     else:
         print(f"Unknown input: '{line}'. Valid: e, c, p, l, w/a/s/d, +/-, h, b/s/e/g/v + 3 digits")
 
 
+def _readCharTimeout(timeout=0.2):
+    """Read a single char from stdin with timeout. Returns '' on timeout."""
+    rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+    if rlist:
+        return sys.stdin.read(1)
+    return ''
+
+
+def _readArmDigits(first_char):
+    """After getting an arm prefix char, read 3 digits with brief timeout."""
+    buf = first_char
+    for _ in range(3):
+        ch = _readCharTimeout(0.5)
+        if ch and ch.isdigit():
+            buf += ch
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+        else:
+            break
+    print()  # newline after echoed digits
+    return buf
+
+
 def runCommandInterface():
     """
-    Main command loop.
+    Main command loop with raw keyboard input (no Enter needed).
 
-    Uses select.select() to simultaneously receive packets from the Arduino
-    and read typed user input from stdin without either blocking the other.
+    Single-char commands execute instantly. Arm commands (b/g/v + 3 digits)
+    buffer additional digits. s and e wait briefly to disambiguate from
+    arm commands (s045=shoulder, e120=elbow) vs movement (s=back, e=estop).
     """
-    print("Sensor interface ready. Type e / c / p / l and press Enter.")
-    print("Press Ctrl+C to exit.\n")
+    print("Sensor interface ready. Keys: w/a/s/d +/- e c p l h")
+    print("Arm: b/s/e/g + 3 digits (e.g. b090). Press Ctrl+C to exit.\n")
 
-    while True:
-        if _ser is not None and _ser.in_waiting >= FRAME_SIZE:
-            pkt = receiveFrame()
-            if pkt:
-                printPacket(pkt)
-                relay.onPacketReceived(packFrame(pkt['packetType'], pkt['command'], pkt['data'], pkt['params']))
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
 
-        relay.checkSecondTerminal(_ser)
+    try:
+        tty.setcbreak(fd)
 
-        rlist, _, _ = select.select([sys.stdin], [], [], 0)
-        if rlist:
-            line = sys.stdin.readline().strip().lower()
-            if not line:
-                time.sleep(0.05)
+        while True:
+            # Check for Arduino packets
+            if _ser is not None and _ser.in_waiting >= FRAME_SIZE:
+                pkt = receiveFrame()
+                if pkt:
+                    printPacket(pkt)
+                    relay.onPacketReceived(packFrame(pkt['packetType'], pkt['command'], pkt['data'], pkt['params']))
+
+            relay.checkSecondTerminal(_ser)
+
+            # Check for keypress (non-blocking)
+            rlist, _, _ = select.select([sys.stdin], [], [], 0.05)
+            if not rlist:
                 continue
-            handleUserInput(line)
 
-        time.sleep(0.05)
+            ch = sys.stdin.read(1).lower()
+            if not ch:
+                continue
+
+            # Unambiguous single-char commands — execute immediately
+            if ch in ('w', 'a', 'd', 'c', 'p', 'l', 'h', '+', '-', '1'):
+                print(ch)
+                handleUserInput(ch)
+
+            # Arm-only prefixes (b=base, g=gripper, v=speed) — always read 3 digits
+            elif ch in ('b', 'g', 'v'):
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+                cmd = _readArmDigits(ch)
+                if len(cmd) == 4:
+                    handleUserInput(cmd)
+                else:
+                    print(f"Incomplete arm command: '{cmd}'. Need 3 digits (e.g. {ch}090)")
+
+            # Ambiguous: s = backward OR s### = shoulder arm
+            # Ambiguous: e = estop OR e### = elbow arm
+            elif ch in ('s', 'e'):
+                sys.stdout.write(ch)
+                sys.stdout.flush()
+                next_ch = _readCharTimeout(0.2)
+                if next_ch and next_ch.isdigit():
+                    # Arm command — read 2 more digits
+                    sys.stdout.write(next_ch)
+                    sys.stdout.flush()
+                    buf = ch + next_ch
+                    for _ in range(2):
+                        d = _readCharTimeout(0.5)
+                        if d and d.isdigit():
+                            buf += d
+                            sys.stdout.write(d)
+                            sys.stdout.flush()
+                        else:
+                            break
+                    print()
+                    if len(buf) == 4:
+                        handleUserInput(buf)
+                    else:
+                        print(f"Incomplete arm command: '{buf}'. Need 3 digits.")
+                else:
+                    # Single char command
+                    print()
+                    handleUserInput(ch)
+
+            else:
+                print(ch)
+                print(f"Unknown key: '{ch}'")
+
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 # ----------------------------------------------------------------

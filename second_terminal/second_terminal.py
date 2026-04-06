@@ -78,6 +78,8 @@ COMMAND_LEFT = 4
 COMMAND_RIGHT = 5
 COMMAND_FAST = 6
 COMMAND_SLOW = 7
+COMMAND_ARM = 8
+COMMAND_RUN = 9
 
 RESP_OK     = 0
 RESP_STATUS = 1
@@ -186,7 +188,8 @@ def _handleInput(line: str, client: TCPClient):
     elif line == 'q':
         print("[second_terminal] Quitting.")
         raise KeyboardInterrupt
-
+    
+    
     else:
         print(f"[second_terminal] Unknown: '{line}'.  Valid: e (E-Stop)  q (quit)")
 

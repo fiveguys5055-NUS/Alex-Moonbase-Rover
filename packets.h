@@ -22,6 +22,7 @@ typedef enum {
     COMMAND_FAST  = 6,
     COMMAND_SLOW  = 7,
     COMMAND_ARM   = 8,
+  COMMAND_RUN   = 9,
 } TCommandType;
 
 typedef enum {

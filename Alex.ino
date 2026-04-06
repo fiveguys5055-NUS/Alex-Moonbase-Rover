@@ -98,10 +98,6 @@ static uint32_t measureChannel(uint8_t s2, uint8_t s3) {
     // Reset counter, then enable INT2 to start counting rising edges
     cli();
     _colorEdgeCount = 0;
-    // Arm servos: Port K bits 0-3 as outputs
-    DDRK |= 0b00001111;
-    setupTimer1();
-
     sei();
     EIMSK |= (1 << INT2);
 
@@ -177,23 +173,25 @@ void homeAll() {
     E_target = 2837; G_target = 2837;
 }
 
-void setupTimer1() {
-    TCCR1A = 0;
-    TCCR1B = 0b00001010;
-    TCNT1 = 0;
-    TIMSK1 |= 0b110;
-    OCR1A = 9999;
-    OCR1B = 2837;
+void setupTimer5() {
+    cli();
+    TCCR5A = 0;
+    TCCR5B = 0b00001010;  // Prescaler 8 (2MHz clock)
+    TCNT5 = 0;
+    TIMSK5 |= 0b110;
+    OCR5A = 9999;  // 5ms per slot
+    OCR5B = 2837;
+    sei();
 }
 
-ISR(TIMER1_COMPA_vect) {
-    if (arm_tracker == 4)      { OCR1B = OCR_G; PORTK |= 0b00001000; }
-    else if (arm_tracker == 3) { OCR1B = OCR_E; PORTK |= 0b00000100; }
-    else if (arm_tracker == 2) { OCR1B = OCR_S; PORTK |= 0b00000010; }
-    else                       { OCR1B = OCR_B; PORTK |= 0b00000001; }
+ISR(TIMER5_COMPA_vect) {
+    if (arm_tracker == 4)      { OCR5B = OCR_G; PORTK |= 0b00001000; }
+    else if (arm_tracker == 3) { OCR5B = OCR_E; PORTK |= 0b00000100; }
+    else if (arm_tracker == 2) { OCR5B = OCR_S; PORTK |= 0b00000010; }
+    else                       { OCR5B = OCR_B; PORTK |= 0b00000001; }
 }
 
-ISR(TIMER1_COMPB_vect) {
+ISR(TIMER5_COMPB_vect) {
     arm_reference = arm_tracker;
     if (arm_reference == 4)      PORTK &= 0b11110111;
     else if (arm_reference == 3) PORTK &= 0b11111011;
@@ -205,6 +203,14 @@ ISR(TIMER1_COMPB_vect) {
 
 static void handleArmCommand(const char *data) {
     char cmd_char = data[0];
+    // Debug: send what we received
+    {
+        TPacket dbg;
+        memset(&dbg, 0, sizeof(dbg));
+        dbg.packetType = PACKET_TYPE_MESSAGE;
+        snprintf(dbg.data, 32, "ARM:%c%c%c%c T5B=%d", data[0], data[1], data[2], data[3], (int)OCR5B);
+        sendFrame(&dbg);
+    }
     if (cmd_char == 'H' || cmd_char == 'h') { homeAll(); return; }
     if (strlen(data) < 4) return;
     int val = arm_parse3(&data[1]);
@@ -215,7 +221,11 @@ static void handleArmCommand(const char *data) {
     int OCR_val = ((double)val / 180.0) * 3725.0 + 975;
     switch (cmd_char) {
         case 'V': case 'v': msPerDeg = vel; break;
-        case 'B': case 'b': B_target = OCR_val; break;
+        case 'B': case 'b': B_target = OCR_val; {
+            TPacket dbg2; memset(&dbg2, 0, sizeof(dbg2)); dbg2.packetType = PACKET_TYPE_MESSAGE;
+            snprintf(dbg2.data, 32, "Bt=%d OCR_B=%d", B_target, (int)OCR_B);
+            sendFrame(&dbg2);
+        } break;
         case 'S': case 's':
             if (val > 110) val = 110;
             OCR_val = ((double)val / 180.0) * 3725.0 + 975;
@@ -256,7 +266,7 @@ volatile uint8_t motorSpeed = 100;
 volatile TCommandType last_cmd;
 
 #define MOVE_DURATION_MS 600
-#define TURN_DURATION_MS 650
+#define TURN_DURATION_MS 800
 static volatile unsigned long movementStartTime = 0;
 static volatile bool movementActive = false;
 static volatile unsigned long movementDuration = MOVE_DURATION_MS; 
@@ -278,6 +288,15 @@ static void handleCommand(const TPacket *cmd) {
             sei();
             sendOK();
             sendStatus(STATE_STOPPED);
+            break;
+
+        case COMMAND_RUN:
+            cli();
+            buttonState  = STATE_RUNNING;
+            stateChanged = false;
+            sei();
+            sendOK();
+            sendStatus(STATE_RUNNING);
             break;
 
         case COMMAND_COLOR: 
@@ -391,6 +410,10 @@ void setup() {
     DDRD  &= ~(1 << TCS_OUT_BIT);       // PD2 as input
     // INT2: rising edge -> ISC21=1, ISC20=1 (INT2 NOT enabled here; enabled per measurement)
     EICRA |= (1 << ISC21) | (1 << ISC20);
+
+    // Arm servos: Port K bits 0-3 (A8-A11) as outputs + start Timer1
+    DDRK |= 0b00001111;
+    setupTimer5();
 
     sei();
 }
