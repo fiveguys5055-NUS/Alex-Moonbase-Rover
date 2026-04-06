@@ -66,6 +66,7 @@ COMMAND_LEFT  = 4
 COMMAND_RIGHT = 5
 COMMAND_FAST  = 6
 COMMAND_SLOW  = 7
+COMMAND_ARM   = 8
 
 RESP_OK     = 0
 RESP_STATUS = 1
@@ -345,6 +346,13 @@ def handleSpeedCommand(dir):
 #   l  perform a single LIDAR scan                   (Activity 4 - implement yourself)
 
 
+def handleArmInput(line):
+    """Send an arm servo command. Format: b090, s045, e120, g080, h, v010"""
+    if isEstopActive():
+        print("Refused: E-Stop is active")
+        return
+    sendCommand(COMMAND_ARM, data=line.encode('ascii'))
+
 def handleUserInput(line):
     """
     Dispatch a single line of user input.
@@ -373,8 +381,16 @@ def handleUserInput(line):
         handleSpeedCommand('+')
     elif line == '-':
         handleSpeedCommand('-')
+    elif len(line) >= 1 and line[0] in ('b', 'g', 'v') and len(line) == 4:
+        handleArmInput(line)
+    elif line[0:1] == 's' and len(line) == 4 and line[1:].isdigit():
+        handleArmInput(line)
+    elif line[0:1] == 'e' and len(line) == 4 and line[1:].isdigit():
+        handleArmInput(line)
+    elif line == 'h':
+        handleArmInput('H')
     else:
-        print(f"Unknown input: '{line}'. Valid: e, c, p, l")
+        print(f"Unknown input: '{line}'. Valid: e, c, p, l, w/a/s/d, +/-, h, b/s/e/g/v + 3 digits")
 
 
 def runCommandInterface():

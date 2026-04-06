@@ -98,6 +98,10 @@ static uint32_t measureChannel(uint8_t s2, uint8_t s3) {
     // Reset counter, then enable INT2 to start counting rising edges
     cli();
     _colorEdgeCount = 0;
+    // Arm servos: Port K bits 0-3 as outputs
+    DDRK |= 0b00001111;
+    setupTimer1();
+
     sei();
     EIMSK |= (1 << INT2);
 
@@ -131,6 +135,104 @@ static void readColorChannels(uint32_t *r, uint32_t *g, uint32_t *b) {
 
 
 
+
+// =============================================================
+// Robotic Arm — 4-DoF MeArm v0.4 on Port K (A8-A11)
+// Timer1 CTC, prescaler 8 (2 MHz), 5ms per servo slot x 4 = 20ms
+// =============================================================
+
+volatile int arm_tracker = 1;
+volatile int arm_reference;
+volatile int OCR_B = 2837;
+volatile int OCR_S = 2630;
+volatile int OCR_E = 2837;
+volatile int OCR_G = 2837;
+volatile int B_target = 2837;
+volatile int S_target = 2630;
+volatile int E_target = 2837;
+volatile int G_target = 2837;
+int msPerDeg = 10;
+static unsigned long arm_lastupdate = 0;
+
+static int arm_parse3(const char *s) {
+    if (s[0] < '0' || s[0] > '9') return -1;
+    if (s[1] < '0' || s[1] > '9') return -1;
+    if (s[2] < '0' || s[2] > '9') return -1;
+    return (s[0] - '0') * 100 + (s[1] - '0') * 10 + (s[2] - '0');
+}
+
+void moveSmooth(volatile int *actual_OCR, int new_OCR, int step) {
+    if (*actual_OCR < new_OCR) {
+        *actual_OCR += step;
+        if (*actual_OCR > new_OCR) *actual_OCR = new_OCR;
+    }
+    if (*actual_OCR > new_OCR) {
+        *actual_OCR -= step;
+        if (*actual_OCR < new_OCR) *actual_OCR = new_OCR;
+    }
+}
+
+void homeAll() {
+    B_target = 2837; S_target = 2630;
+    E_target = 2837; G_target = 2837;
+}
+
+void setupTimer1() {
+    TCCR1A = 0;
+    TCCR1B = 0b00001010;
+    TCNT1 = 0;
+    TIMSK1 |= 0b110;
+    OCR1A = 9999;
+    OCR1B = 2837;
+}
+
+ISR(TIMER1_COMPA_vect) {
+    if (arm_tracker == 4)      { OCR1B = OCR_G; PORTK |= 0b00001000; }
+    else if (arm_tracker == 3) { OCR1B = OCR_E; PORTK |= 0b00000100; }
+    else if (arm_tracker == 2) { OCR1B = OCR_S; PORTK |= 0b00000010; }
+    else                       { OCR1B = OCR_B; PORTK |= 0b00000001; }
+}
+
+ISR(TIMER1_COMPB_vect) {
+    arm_reference = arm_tracker;
+    if (arm_reference == 4)      PORTK &= 0b11110111;
+    else if (arm_reference == 3) PORTK &= 0b11111011;
+    else if (arm_reference == 2) PORTK &= 0b11111101;
+    else                         PORTK &= 0b11111110;
+    arm_tracker++;
+    if (arm_tracker > 4) arm_tracker = 1;
+}
+
+static void handleArmCommand(const char *data) {
+    char cmd_char = data[0];
+    if (cmd_char == 'H' || cmd_char == 'h') { homeAll(); return; }
+    if (strlen(data) < 4) return;
+    int val = arm_parse3(&data[1]);
+    if (val < 0) return;
+    int vel = val;
+    if (val > 180) val = 180;
+    if (val < 0) val = 0;
+    int OCR_val = ((double)val / 180.0) * 3725.0 + 975;
+    switch (cmd_char) {
+        case 'V': case 'v': msPerDeg = vel; break;
+        case 'B': case 'b': B_target = OCR_val; break;
+        case 'S': case 's':
+            if (val > 110) val = 110;
+            OCR_val = ((double)val / 180.0) * 3725.0 + 975;
+            S_target = OCR_val; break;
+        case 'E': case 'e':
+            if (val > 160) val = 160;
+            if (val < 25) val = 25;
+            OCR_val = ((double)val / 180.0) * 3725.0 + 975;
+            E_target = OCR_val; break;
+        case 'G': case 'g':
+            if (val < 73) val = 73;
+            if (val > 110) val = 110;
+            OCR_val = ((double)val / 180.0) * 3725.0 + 975;
+            G_target = OCR_val; break;
+    }
+}
+
 // ------------------------------------------------------------------
 // Packet helpers
 // ------------------------------------------------------------------
@@ -151,7 +253,13 @@ static void sendStatus(TState st) { sendResponse(RESP_STATUS, (uint32_t)st); }
 // Motor speed (0-255).  Start at 150; FAST/SLOW adjust by 25.
 // ------------------------------------------------------------------
 volatile uint8_t motorSpeed = 100;
-volatile TCommandType last_cmd; 
+volatile TCommandType last_cmd;
+
+#define MOVE_DURATION_MS 600
+#define TURN_DURATION_MS 650
+static volatile unsigned long movementStartTime = 0;
+static volatile bool movementActive = false;
+static volatile unsigned long movementDuration = MOVE_DURATION_MS; 
 
 // ------------------------------------------------------------------
 // Command handler
@@ -187,25 +295,25 @@ static void handleCommand(const TPacket *cmd) {
         
 
         case COMMAND_FW:
-            if (buttonState == STATE_RUNNING) forward(motorSpeed);
+            if (buttonState == STATE_RUNNING) { forward(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = MOVE_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_FW;
             break;
 
         case COMMAND_BW:
-            if (buttonState == STATE_RUNNING) backward(motorSpeed);
+            if (buttonState == STATE_RUNNING) { backward(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = MOVE_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_BW;
             break;
 
         case COMMAND_LEFT:
-            if (buttonState == STATE_RUNNING) ccw(motorSpeed);
+            if (buttonState == STATE_RUNNING) { ccw(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_LEFT;
             break;
 
         case COMMAND_RIGHT:
-            if (buttonState == STATE_RUNNING) cw(motorSpeed);
+            if (buttonState == STATE_RUNNING) { cw(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_RIGHT;
             break;
@@ -243,6 +351,13 @@ static void handleCommand(const TPacket *cmd) {
               cw(motorSpeed);
             }
            
+            sendOK();
+            break;
+
+        case COMMAND_ARM:
+            if (buttonState == STATE_RUNNING) {
+                handleArmCommand(cmd->data);
+            }
             sendOK();
             break;
     }
@@ -289,6 +404,24 @@ void loop() {
         sei();
         if (s == STATE_STOPPED) stop();
         sendStatus(s);
+    }
+
+    // Timed-pulse auto-stop
+    if (movementActive && (millis() - movementStartTime >= movementDuration)) {
+        stop();
+        movementActive = false;
+    }
+
+    // Smooth arm servo motion update
+    unsigned long currenttime = millis();
+    if (currenttime - arm_lastupdate >= (unsigned long)msPerDeg) {
+        arm_lastupdate = currenttime;
+        cli();
+        moveSmooth(&OCR_B, B_target, 23);
+        moveSmooth(&OCR_S, S_target, 23);
+        moveSmooth(&OCR_E, E_target, 23);
+        moveSmooth(&OCR_G, G_target, 23);
+        sei();
     }
 
     // Process incoming commands from the Pi
