@@ -38,8 +38,8 @@ from .net_utils import TCPServer, sendTPacketFrame, recvTPacketFrame
 # ============================================================
 
 SECOND_TERM_PORT    = 65432   # TCP port second_terminal.py connects to
-SECOND_TERM_TIMEOUT = 300      # Seconds to wait for second_terminal.py to connect
-TLS_ENABLED   = True
+SECOND_TERM_TIMEOUT = 10      # Seconds to wait for second_terminal.py to connect
+TLS_ENABLED   = False
 TLS_CERT_PATH = "certs/server.crt"
 TLS_KEY_PATH  = "certs/server.key"
 

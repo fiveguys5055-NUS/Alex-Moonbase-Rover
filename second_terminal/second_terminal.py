@@ -174,25 +174,38 @@ def _printPacket(pkt):
 # Input handling
 # ---------------------------------------------------------------------------
 
+def _sendArm(cmd_str: str, client: TCPClient):
+    """Send an arm command via COMMAND_ARM."""
+    frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_ARM, data=cmd_str.encode('ascii'))
+    sendTPacketFrame(client.sock, frame)
+    print(f"[arm] Sent: {cmd_str}")
+
+
 def _handleInput(line: str, client: TCPClient):
     """Handle one line of keyboard input."""
+    global _estop_active
     line = line.strip().lower()
     if not line:
         return
 
     if line == 'e':
-        frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_ESTOP, data=b'secret information')
+        frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_ESTOP)
         sendTPacketFrame(client.sock, frame)
-        print("[second_terminal] Sent: E-STOP")
-
+        print("[arm] Sent: E-STOP")
+    elif line == '1':
+        _estop_active = False
+        frame = _packFrame(PACKET_TYPE_COMMAND, COMMAND_RUN)
+        sendTPacketFrame(client.sock, frame)
+        print("[arm] Sent: RESUME")
     elif line == 'q':
-        print("[second_terminal] Quitting.")
+        print("[arm] Quitting.")
         raise KeyboardInterrupt
-    
-    
+    elif line == 'h':
+        _sendArm('H', client)
+    elif len(line) == 4 and line[0] in ('b', 's', 'e', 'g', 'v') and line[1:].isdigit():
+        _sendArm(line.upper(), client)
     else:
-        print(f"[second_terminal] Unknown: '{line}'.  Valid: e (E-Stop)  q (quit)")
-
+        print(f"[arm] Unknown: '{line}'. Valid: b/s/e/g/v + 3 digits, h, e, 1, q")
 
 # ---------------------------------------------------------------------------
 # Main loop
@@ -208,9 +221,10 @@ def run():
               " second terminal connection.")
         sys.exit(1)
 
-    print("[second_terminal] Connected!")
-    print("[second_terminal] Commands:  e = E-Stop   q = quit")
-    print("[second_terminal] Incoming robot packets will be printed below.\n")
+    print("[arm] Connected!")
+    print("[arm] Commands: b090 s045 e120 g080 (servos), h (home), v010 (speed)")
+    print("[arm] Also: e (E-Stop), 1 (resume), q (quit)")
+    print("[arm] Type command and press Enter.\n")
 
     try:
         while True:

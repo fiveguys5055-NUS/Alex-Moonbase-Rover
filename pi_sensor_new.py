@@ -273,7 +273,7 @@ except ImportError:
     _camera_available = False
 
 _camera = None          # opened in __main__
-_frames_remaining = 5   # frames remaining before further captures are refused
+_frames_remaining = 10   # frames remaining before further captures are refused
 
 
 def handleCameraCommand():
