@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls /Users/ambar/Downloads/code/pi_sensor*.py)"
-    ]
-  }
-}
