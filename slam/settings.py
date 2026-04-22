@@ -28,14 +28,14 @@ MAP_SIZE_PIXELS = 1000
 
 # Real-world area the map covers, in metres.
 # The map will span MAP_SIZE_METERS x MAP_SIZE_METERS metres.
-MAP_SIZE_METERS = 8
+MAP_SIZE_METERS = 4
 
 # How aggressively new LIDAR scans update the map (1 = slow, 10 = fast).
 # Lower values produce smoother maps; higher values react faster to changes.
 MAP_QUALITY = 5
 
 # Maximum gap (in mm) that BreezySLAM treats as a continuous wall.
-HOLE_WIDTH_MM = 100
+HOLE_WIDTH_MM = 90
 
 # ===========================================================================
 # Scan settings

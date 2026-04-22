@@ -34,7 +34,7 @@ def connect(port=LIDAR_PORT, baudrate=LIDAR_BAUD):
         time.sleep(2)
         lidar.disconnect()
         lidar.connect(port=port, baudrate=baudrate, timeout=10)
-        lidar.set_motor_pwm(500)
+        lidar.set_motor_pwm(660)
         return lidar
     except Exception as exc:
         print(f'[lidar] Could not connect on {port}: {exc}')

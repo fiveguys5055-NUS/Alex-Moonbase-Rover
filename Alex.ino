@@ -162,15 +162,15 @@ void moveSmooth(volatile int *actual_OCR, int new_OCR, int step) {
         *actual_OCR += step;
         if (*actual_OCR > new_OCR) *actual_OCR = new_OCR;
     }
-    if (*actual_OCR > new_OCR) {
+    gf (*actual_OCR > new_OCR) {
         *actual_OCR -= step;
         if (*actual_OCR < new_OCR) *actual_OCR = new_OCR;
     }
 }
 
 void homeAll() {
-    B_target = 2837; S_target = 2630;
-    E_target = 2837; G_target = 2837;
+    B_target = 2837; S_target = 3251;
+    E_target = 2009; G_target = 2837;
 }
 
 void setupTimer5() {
@@ -236,7 +236,7 @@ static void handleArmCommand(const char *data) {
             OCR_val = ((double)val / 180.0) * 3725.0 + 975;
             E_target = OCR_val; break;
         case 'G': case 'g':
-            if (val < 73) val = 73;
+            if (val < 77) val = 77;
             if (val > 110) val = 110;
             OCR_val = ((double)val / 180.0) * 3725.0 + 975;
             G_target = OCR_val; break;
@@ -262,11 +262,12 @@ static void sendStatus(TState st) { sendResponse(RESP_STATUS, (uint32_t)st); }
 // ------------------------------------------------------------------
 // Motor speed (0-255).  Start at 150; FAST/SLOW adjust by 25.
 // ------------------------------------------------------------------
-volatile uint8_t motorSpeed = 100;
+volatile uint8_t motorSpeed = 120;
+volatile uint8_t turnSpeed = 145;
 volatile TCommandType last_cmd;
 
-#define MOVE_DURATION_MS 600
-#define TURN_DURATION_MS 800
+#define MOVE_DURATION_MS 400
+#define TURN_DURATION_MS 400
 static volatile unsigned long movementStartTime = 0;
 static volatile bool movementActive = false;
 static volatile unsigned long movementDuration = MOVE_DURATION_MS; 
@@ -326,22 +327,23 @@ static void handleCommand(const TPacket *cmd) {
             break;
 
         case COMMAND_LEFT:
-            if (buttonState == STATE_RUNNING) { ccw(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
+            if (buttonState == STATE_RUNNING) { ccw(turnSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_LEFT;
             break;
 
         case COMMAND_RIGHT:
-            if (buttonState == STATE_RUNNING) { cw(motorSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
+            if (buttonState == STATE_RUNNING) { cw(turnSpeed); movementStartTime = millis(); movementActive = true; movementDuration = TURN_DURATION_MS; }
             sendOK();
             last_cmd = COMMAND_RIGHT;
             break;
 
         case COMMAND_FAST:
             if (motorSpeed <= 235) motorSpeed += 20;
+            if (turnSpeed <=235) turnSpeed += 20;
             if(last_cmd == COMMAND_FW) {
               forward(motorSpeed);
-            }
+            } 
             else if(last_cmd == COMMAND_BW) {
               backward(motorSpeed);
             }
@@ -351,13 +353,13 @@ static void handleCommand(const TPacket *cmd) {
             else if(last_cmd == COMMAND_RIGHT) {
               cw(motorSpeed);
             }
-           
             sendOK();
             break;
 
         case COMMAND_SLOW:
             if (motorSpeed >= 20) motorSpeed -= 20;
-            if(last_cmd == COMMAND_FW) {
+            if (turnSpeed >= 20) turnSpeed -= 20;
+           if(last_cmd == COMMAND_FW) {
               forward(motorSpeed);
             }
             else if(last_cmd == COMMAND_BW) {
@@ -368,7 +370,7 @@ static void handleCommand(const TPacket *cmd) {
             }
             else if(last_cmd == COMMAND_RIGHT) {
               cw(motorSpeed);
-            }
+            } 
            
             sendOK();
             break;

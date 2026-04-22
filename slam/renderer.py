@@ -177,7 +177,7 @@ def render_map_numpy(
     maparray = np.rot90(np.flipud(maparray), k=1)
 
     # Sample up to 6 evenly-spaced points per display cell in each dimension.
-    samples_per_cell = 6
+    samples_per_cell = 4
 
     r_centers = np.linspace(row_lo, row_hi, disp_rows * samples_per_cell,
                             endpoint=False)
